@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "enabledManagers": [
+    "dockerfile",
+    "github-actions",
+    "custom.regex"
+  ],
+  "dependencyDashboard": true,
+  "minimumReleaseAge": "3 days",
+  "prHourlyLimit": 0,
+  "semanticCommits": "disabled",
+  "commitMessageTopic": "{{{depName}}}",
+  "commitMessageExtra": "to {{{newValue}}}",
+  "assignees": [
+    "hosaka"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Caddy plugins built in with xcaddy",
+      "managerFilePatterns": [
+        "/^Containerfile$/"
+      ],
+      "matchStrings": [
+        "--with (?<depName>[^@\\s]+)@(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "go"
+    }
+  ]
+}

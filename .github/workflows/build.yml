@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Containerfile
+      - .github/workflows/build.yml
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Tag with the Caddy version and run number
+        id: tag
+        run: |
+          caddy=$(sed -n 's|^FROM docker\.io/library/caddy:\([0-9.]*\)$|\1|p' Containerfile)
+          test -n "$caddy"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "tag=$caddy-$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          docker build \
+            --file Containerfile \
+            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+            --tag ${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }} \
+            --tag ${{ steps.tag.outputs.image }}:latest \
+            .
+
+      - name: Check for the deSEC module
+        run: docker run --rm ${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }} caddy list-modules --skip-standard | grep -qx dns.providers.desec
+
+      - name: Push
+        if: github.ref_name == 'main'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io --username ${{ github.actor }} --password-stdin
+          docker push --all-tags ${{ steps.tag.outputs.image }}
